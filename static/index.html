@@ -1,467 +1,437 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Canvas</title>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Realtime Collaborative Text Editor</title>
     <style>
+        /* Layout & base */
+        :root {
+            --bg: #f7f7f8;
+            --panel: #ffffff;
+            --panel-border: #e6e7eb;
+            --text: #11181c;
+            --muted: #6b7280;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --accent: #0ea5e9;
+            --radius: 10px;
+        }
+
         * {
+            box-sizing: border-box;
             margin: 0;
             padding: 0;
-            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            height: 100%;
         }
 
         body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            background: #f5f5f5;
-            height: 100vh;
+            font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, Noto Sans, Arial, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+            color: var(--text);
+            background: var(--bg);
             display: flex;
             flex-direction: column;
         }
 
-        .header {
-            background: #4285f4;
-            color: white;
-            padding: 16px 24px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        a {
+            color: var(--accent);
+            text-decoration: none;
         }
 
-        .header h1 {
-            font-size: 20px;
-            font-weight: 500;
+        a:hover {
+            text-decoration: underline;
+        }
+
+        /* Header */
+        .header {
+            background: var(--panel);
+            border-bottom: 1px solid var(--panel-border);
+            padding: 12px 16px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+
+        .title {
+            font-size: 16px;
+            font-weight: 600;
+            line-height: 1;
         }
 
         .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--muted);
+            white-space: nowrap;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+            background: var(--success);
+            box-shadow: 0 0 0 2px color-mix(in srgb, var(--success) 25%, transparent);
+        }
+
+        .dot.disconnected {
+            background: var(--danger);
+            box-shadow: 0 0 0 2px color-mix(in srgb, var(--danger) 25%, transparent);
+        }
+
+        /* Join URL */
+        .join {
             display: flex;
             align-items: center;
             gap: 8px;
-            font-size: 14px;
-        }
-
-        .status-dot {
-            width: 8px;
-            height: 8px;
-            border-radius: 50%;
-            background: #34a853;
-        }
-
-        .status-dot.disconnected {
-            background: #ea4335;
-        }
-
-        .editor-container {
+            min-width: 0;
             flex: 1;
-            display: flex;
             justify-content: center;
-            padding: 24px;
-            overflow: auto;
         }
 
-        .editor-wrapper {
-            background: white;
-            width: 100%;
-            max-width: 900px;
-            min-height: 600px;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.12);
-            border-radius: 8px;
-            padding: 48px 64px;
+        .join small {
+            color: var(--muted);
+            white-space: nowrap;
         }
 
-        #editor {
-            width: 100%;
-            min-height: 500px;
-            border: none;
-            outline: none;
-            font-size: 16px;
-            line-height: 1.6;
-            font-family: 'Georgia', serif;
-            resize: vertical;
+        .join .url {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            min-width: 0;
+            max-width: 100%;
         }
 
-        .users-online {
-            padding: 12px 24px;
-            background: white;
-            border-top: 1px solid #e0e0e0;
-            font-size: 14px;
-            color: #5f6368;
+        .join input {
+            width: min(520px, 60vw);
+            min-width: 200px;
+            border: 1px solid var(--panel-border);
+            background: var(--panel);
+            color: var(--text);
+            border-radius: 6px;
+            font-size: 12px;
+            padding: 6px 8px;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
-        .user-badge {
-            display: inline-block;
-            background: #e8f0fe;
-            color: #1967d2;
-            padding: 4px 12px;
-            border-radius: 12px;
-            margin-right: 8px;
-            font-size: 13px;
+        .btn {
+            border: 1px solid var(--panel-border);
+            background: #0b98e0;
+            color: #fff;
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 12px;
+            cursor: pointer;
         }
 
-        .toolbar {
-            padding: 12px 24px;
-            background: white;
-            border-bottom: 1px solid #e0e0e0;
-            display: flex;
+        .btn:hover {
+            filter: brightness(0.95);
+        }
+
+        .btn.secondary {
+            background: var(--panel);
+            color: var(--text);
+        }
+
+        /* Main */
+        .main {
+            padding: 16px;
+            display: grid;
             gap: 12px;
         }
 
-        .toolbar input {
-            flex: 1;
-            padding: 8px 12px;
-            border: 1px solid #dadce0;
-            border-radius: 4px;
-            font-size: 14px;
+        .editor-card {
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03);
+            overflow: hidden;
         }
 
-        .toolbar input:focus {
+        .editor-bar {
+            border-bottom: 1px solid var(--panel-border);
+            padding: 10px 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+        }
+
+        .editor-bar .left,
+        .editor-bar .right {
+            display: inline-flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .pill {
+            font-size: 12px;
+            color: var(--muted);
+            background: #f0f2f5;
+            padding: 4px 8px;
+            border-radius: 999px;
+            border: 1px solid var(--panel-border);
+        }
+
+        /* Editor area */
+        .editor-wrap {
+            position: relative;
+            height: min(70vh, 720px);
+            display: grid;
+        }
+
+        textarea#editor {
+            width: 100%;
+            height: 100%;
+            padding: 20px 18px;
+            border: 0;
             outline: none;
-            border-color: #4285f4;
+            resize: none;
+            font: 16px/1.6 Georgia, "Times New Roman", Times, serif;
+            color: var(--text);
+            background: transparent;
+            tab-size: 2;
+            white-space: pre-wrap;
+            word-break: break-word;
         }
 
-        .toolbar button {
-            padding: 8px 16px;
-            background: #4285f4;
-            color: white;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-            font-size: 14px;
+        /* Cursor overlay sits above the textarea but is non-interactive */
+        .cursor-layer {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            overflow: hidden;
         }
 
-        .toolbar button:hover {
-            background: #1967d2;
+        .caret {
+            position: absolute;
+            width: 2px;
+            border-radius: 1px;
+            opacity: 0.9;
+            animation: blink 1s step-end infinite;
         }
 
-        .notification {
+        @keyframes blink {
+            50% {
+                opacity: 0.15;
+            }
+        }
+
+        .caret-label {
+            position: absolute;
+            transform: translateY(-100%);
+            font-size: 10px;
+            font-weight: 600;
+            padding: 2px 6px;
+            border-radius: 999px;
+            color: #fff;
+            white-space: nowrap;
+            backdrop-filter: saturate(1.2);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
+        }
+
+        /* Users list */
+        .users-card {
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-radius: var(--radius);
+            padding: 10px 12px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: center;
+        }
+
+        .users-card .label {
+            color: var(--muted);
+            font-size: 12px;
+            margin-right: 4px;
+        }
+
+        .user-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 12px;
+            padding: 4px 10px;
+            border-radius: 999px;
+            border: 1px solid var(--panel-border);
+            background: #f5f7fa;
+            color: var(--text);
+        }
+
+        .swatch {
+            width: 10px;
+            height: 10px;
+            border-radius: 999px;
+        }
+
+        /* Toast */
+        .toast {
             position: fixed;
-            top: 80px;
-            right: 24px;
-            background: #323232;
+            right: 16px;
+            bottom: 16px;
+            background: #111827;
             color: white;
-            padding: 12px 24px;
-            border-radius: 4px;
-            font-size: 14px;
+            padding: 10px 12px;
+            border-radius: 8px;
+            font-size: 12px;
             opacity: 0;
-            transition: opacity 0.3s;
-            z-index: 1000;
+            transform: translateY(6px);
+            transition: opacity .2s, transform .2s;
+            z-index: 50;
         }
 
-        .notification.show {
+        .toast.show {
             opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            inset: 0;
+            display: grid;
+            place-items: center;
+            background: rgba(17, 24, 39, 0.35);
+            z-index: 100;
+        }
+
+        .modal.hidden {
+            display: none;
+        }
+
+        .dialog {
+            width: min(560px, 92vw);
+            background: var(--panel);
+            border: 1px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 16px;
+            display: grid;
+            gap: 12px;
+        }
+
+        .dialog h2 {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 4px;
+        }
+
+        .fields {
+            display: grid;
+            gap: 10px;
+        }
+
+        .field {
+            display: grid;
+            gap: 6px;
+        }
+
+        .field label {
+            font-size: 12px;
+            color: var(--muted);
+        }
+
+        .field input {
+            width: 100%;
+            padding: 8px 10px;
+            border: 1px solid var(--panel-border);
+            border-radius: 8px;
+            background: #fff;
+            color: var(--text);
+            font-size: 14px;
+            outline: none;
+        }
+
+        .row {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            justify-content: flex-end;
         }
     </style>
 </head>
+
 <body>
-    <div class="header">
-        <h1 id="documentTitle">Untitled Document</h1>
-        <div class="status">
-            <div class="status-dot" id="statusDot"></div>
-            <span id="statusText">Connected</span>
+    <header class="header" aria-label="Editor header">
+        <div class="title" id="docTitle">Untitled Document</div>
+        <div class="join" aria-live="polite">
+            <small>Share this link:</small>
+            <span class="url">
+                <input id="joinUrl" type="text" readonly aria-label="Join URL" />
+                <button class="btn secondary" id="copyUrlBtn" type="button">Copy</button>
+            </span>
+        </div>
+        <div class="status" aria-live="polite">
+            <span class="dot" id="statusDot" aria-hidden="true"></span>
+            <span id="statusText">Disconnected</span>
+        </div>
+    </header>
+
+    <main class="main">
+        <section class="editor-card" aria-label="Editor">
+            <div class="editor-bar">
+                <div class="left">
+                    <span class="pill" id="mePill">You: —</span>
+                </div>
+                <div class="right">
+                    <button class="btn secondary" id="renameBtn" type="button" title="Rename document">Rename</button>
+                    <button class="btn" id="saveBtn" type="button" title="Save document">Save</button>
+                </div>
+            </div>
+
+            <div class="editor-wrap">
+                <textarea id="editor" placeholder="Start typing together…"></textarea>
+                <div class="cursor-layer" id="cursorLayer" aria-hidden="true"></div>
+            </div>
+        </section>
+
+        <section class="users-card" aria-label="Online users">
+            <span class="label">Online:</span>
+            <div id="usersList">Just you</div>
+        </section>
+    </main>
+
+    <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+    Join modal
+    <div class="modal" id="joinModal" role="dialog" aria-modal="true" aria-labelledby="joinTitle"
+        aria-describedby="joinDesc">
+        <div class="dialog">
+            <h2 id="joinTitle">Join or create a document</h2>
+            <p id="joinDesc" style="font-size:12px;color:var(--muted);">
+                Enter a document ID and a username. If you leave the doc ID empty, a new one will be created for you.
+            </p>
+            <div class="fields">
+                <div class="field">
+                    <label for="docIdInput">Document ID</label>
+                    <input id="docIdInput" placeholder="e.g. 3e0fe1a7-…" maxlength="80" />
+                </div>
+                <div class="field">
+                    <label for="userNameInput">Your name</label>
+                    <input id="userNameInput" placeholder="e.g. Alex" maxlength="30" />
+                </div>
+            </div>
+            <div class="row">
+                <button class="btn secondary" id="randomizeDocId" type="button">Random ID</button>
+                <button class="btn" id="joinBtn" type="button">Join</button>
+            </div>
         </div>
     </div>
 
-    <div class="toolbar">
-        <input type="text" id="usernameInput" placeholder="Enter your name" maxlength="20">
-        <button id="saveButton">Save Document</button>
-    </div>
-
-    <div class="editor-container">
-        <div class="editor-wrapper">
-            <textarea id="editor" placeholder="Start typing..."></textarea>
-        </div>
-    </div>
-
-    <div class="users-online">
-        <span>Online: </span>
-        <span id="usersList">Just you</span>
-    </div>
-
-    <div class="notification" id="notification"></div>
-
-    <script>
-        class RealtimeEditor {
-            constructor() {
-                this.ws = null;
-                this.userId = this.generateUserId();
-                this.username = '';
-                this.documentId = this.getDocumentId();
-                this.editor = document.getElementById('editor');
-                this.isRemoteChange = false;
-                this.reconnectAttempts = 0;
-                this.maxReconnectAttempts = 5;
-                this.users = new Map();
-                
-                this.initializeUI();
-                this.connect();
-            }
-
-            generateUserId() {
-                return 'user_' + Math.random().toString(36).substr(2, 9);
-            }
-
-            getDocumentId() {
-                const params = new URLSearchParams(window.location.search);
-                return params.get('doc') || 'default';
-            }
-
-            initializeUI() {
-                const usernameInput = document.getElementById('usernameInput');
-                const saveButton = document.getElementById('saveButton');
-                
-                // Load username from localStorage
-                this.username = localStorage.getItem('username') || '';
-                usernameInput.value = this.username;
-
-                // Handle username changes
-                usernameInput.addEventListener('change', (e) => {
-                    this.username = e.target.value.trim();
-                    localStorage.setItem('username', this.username);
-                    if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                        this.sendMessage({
-                            type: 'username_change',
-                            username: this.username
-                        });
-                    }
-                });
-
-                // Handle text changes
-                this.editor.addEventListener('input', (e) => {
-                    if (!this.isRemoteChange) {
-                        this.handleLocalChange();
-                    }
-                    this.isRemoteChange = false;
-                });
-
-                // Handle cursor position
-                this.editor.addEventListener('selectionchange', () => {
-                    this.sendCursorPosition();
-                });
-
-                // Save button
-                saveButton.addEventListener('click', () => {
-                    this.saveDocument();
-                });
-
-                // Auto-save every 30 seconds
-                setInterval(() => {
-                    this.saveDocument();
-                }, 30000);
-            }
-
-            connect() {
-                const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-                const wsUrl = `${protocol}//${window.location.host}/ws?doc=${this.documentId}&user=${this.userId}`;
-
-                this.ws = new WebSocket(wsUrl);
-
-                this.ws.onopen = () => {
-                    console.log('WebSocket connected');
-                    this.updateStatus(true);
-                    this.reconnectAttempts = 0;
-                    
-                    // Send initial username
-                    if (this.username) {
-                        this.sendMessage({
-                            type: 'username_change',
-                            username: this.username
-                        });
-                    }
-                };
-
-                this.ws.onmessage = (event) => {
-                    this.handleMessage(JSON.parse(event.data));
-                };
-
-                this.ws.onerror = (error) => {
-                    console.error('WebSocket error:', error);
-                    this.showNotification('Connection error occurred');
-                };
-
-                this.ws.onclose = () => {
-                    console.log('WebSocket disconnected');
-                    this.updateStatus(false);
-                    this.attemptReconnect();
-                };
-            }
-
-            attemptReconnect() {
-                if (this.reconnectAttempts < this.maxReconnectAttempts) {
-                    this.reconnectAttempts++;
-                    const delay = Math.min(1000 * Math.pow(2, this.reconnectAttempts), 10000);
-                    
-                    this.showNotification(`Reconnecting in ${delay/1000} seconds...`);
-                    
-                    setTimeout(() => {
-                        console.log(`Reconnection attempt ${this.reconnectAttempts}`);
-                        this.connect();
-                    }, delay);
-                } else {
-                    this.showNotification('Failed to reconnect. Please refresh the page.');
-                }
-            }
-
-            handleMessage(message) {
-                switch (message.type) {
-                    case 'init':
-                        this.handleInit(message);
-                        break;
-                    case 'text_change':
-                        this.handleRemoteChange(message);
-                        break;
-                    case 'cursor_position':
-                        this.handleCursorPosition(message);
-                        break;
-                    case 'user_joined':
-                        this.handleUserJoined(message);
-                        break;
-                    case 'user_left':
-                        this.handleUserLeft(message);
-                        break;
-                    case 'users_list':
-                        this.handleUsersList(message);
-                        break;
-                    case 'save_success':
-                        this.showNotification('Document saved successfully');
-                        break;
-                    case 'error':
-                        this.showNotification('Error: ' + message.message);
-                        break;
-                }
-            }
-
-            handleInit(message) {
-                this.isRemoteChange = true;
-                this.editor.value = message.content || '';
-                
-                if (message.title) {
-                    document.getElementById('documentTitle').textContent = message.title;
-                }
-            }
-
-            handleLocalChange() {
-                const content = this.editor.value;
-                const cursorPosition = this.editor.selectionStart;
-                
-                this.sendMessage({
-                    type: 'text_change',
-                    content: content,
-                    cursor: cursorPosition,
-                    timestamp: Date.now()
-                });
-            }
-
-            handleRemoteChange(message) {
-                if (message.userId === this.userId) {
-                    return; // Ignore our own changes
-                }
-
-                const currentCursor = this.editor.selectionStart;
-                const currentScrollTop = this.editor.scrollTop;
-                
-                this.isRemoteChange = true;
-                this.editor.value = message.content;
-                
-                // Restore cursor if it's close to where it was
-                this.editor.setSelectionRange(currentCursor, currentCursor);
-                this.editor.scrollTop = currentScrollTop;
-            }
-
-            sendCursorPosition() {
-                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                    this.sendMessage({
-                        type: 'cursor_position',
-                        position: this.editor.selectionStart
-                    });
-                }
-            }
-
-            handleCursorPosition(message) {
-                // In a more advanced implementation, you would show other users' cursors
-                console.log(`User ${message.username || message.userId} cursor at position ${message.position}`);
-            }
-
-            handleUserJoined(message) {
-                this.users.set(message.userId, message.username || 'Anonymous');
-                this.updateUsersList();
-                this.showNotification(`${message.username || 'A user'} joined`);
-            }
-
-            handleUserLeft(message) {
-                const username = this.users.get(message.userId) || 'A user';
-                this.users.delete(message.userId);
-                this.updateUsersList();
-                this.showNotification(`${username} left`);
-            }
-
-            handleUsersList(message) {
-                this.users.clear();
-                message.users.forEach(user => {
-                    if (user.userId !== this.userId) {
-                        this.users.set(user.userId, user.username || 'Anonymous');
-                    }
-                });
-                this.updateUsersList();
-            }
-
-            updateUsersList() {
-                const usersList = document.getElementById('usersList');
-                if (this.users.size === 0) {
-                    usersList.textContent = 'Just you';
-                } else {
-                    const userNames = Array.from(this.users.values());
-                    usersList.innerHTML = userNames.map(name => 
-                        `<span class="user-badge">${name}</span>`
-                    ).join('');
-                }
-            }
-
-            saveDocument() {
-                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                    this.sendMessage({
-                        type: 'save',
-                        content: this.editor.value
-                    });
-                }
-            }
-
-            sendMessage(message) {
-                if (this.ws && this.ws.readyState === WebSocket.OPEN) {
-                    message.userId = this.userId;
-                    message.username = this.username;
-                    this.ws.send(JSON.stringify(message));
-                }
-            }
-
-            updateStatus(connected) {
-                const statusDot = document.getElementById('statusDot');
-                const statusText = document.getElementById('statusText');
-                
-                if (connected) {
-                    statusDot.classList.remove('disconnected');
-                    statusText.textContent = 'Connected';
-                } else {
-                    statusDot.classList.add('disconnected');
-                    statusText.textContent = 'Disconnected';
-                }
-            }
-
-            showNotification(message) {
-                const notification = document.getElementById('notification');
-                notification.textContent = message;
-                notification.classList.add('show');
-                
-                setTimeout(() => {
-                    notification.classList.remove('show');
-                }, 3000);
-            }
-        }
-
-        // Initialize the editor when the page loads
-        document.addEventListener('DOMContentLoaded', () => {
-            new RealtimeEditor();
-        });
-    </script>
+    <script src="script.js"></script>
 </body>
+
 </html>
